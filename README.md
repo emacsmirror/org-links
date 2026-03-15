@@ -12,9 +12,24 @@ Org mode:
 ```[[180::asd]]```
 
 - C-u C-c w
-[[file:emacs-file2026-03-15.org::180::asd][asd]]
+```[[file:~/file.org::13::asd][asd]]```
 
-res
+Programming mode:
+- C-c w
+```[[file:~/file.org::13::asd][asd]]```
+
+- C-u C-c w
+```[[180::asd]]```
+
+Region selected:
+- C-c w
+```[[180-190::asd]]```
+
+- C-u C-c w
+```[[file:~/file.org::13-17::asd][asd]]```
+
+
+## Features
 
 1) The command `org-links-store-extended' copies a link to the current file, at the current point.
 2) The syntax above is extended to include a few variants that are useful for linking into source code:
