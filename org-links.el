@@ -147,6 +147,22 @@ Search ignore first empty first characters in all case."
 
 (defvar org-links--debug-flag nil)
 
+(defvar org-links-num-num-regexp "^\\([0-9]+\\)-\\([0-9]+\\)$"
+  "Links ::NUM-NUM.")
+
+;; (defvar org-links-num-num-re (rx (seq "[["
+;; 	           ;; URI part: match group 1.
+;; 	           (group (+ digit)) "-" (group (+ digit))
+;; 		   ;; Description (optional): match group 2.
+;; 		   (opt "[" (group (+? anything)) "]")
+;; 		   "]")))
+
+(defvar org-links-num-num-line-regexp "^\\([0-9]+\\)-\\([0-9]+\\)::\\(.*\\)$"
+  "Links ::NUM-NUM::LINE.")
+(defvar org-links-num-line-regexp "^\\([0-9]+\\)::\\(.?+\\)$"
+  "Links ::NUM::LINE.")
+
+
 ;; -=  functions
 (defsubst org-links-string-full-match (regexp string)
   "Return t if REGEXP fully match STRING."
@@ -417,16 +433,21 @@ For usage with original Org `org-open-at-point-global' function."
            ;;            "::" (number-to-string (line-number-at-pos))
            ;;            (if (string-empty-p cline) "" (concat "::" cline)))))))
 
-           ;; - Org mode - at header. Format: [[* header]]
-           ((and (derived-mode-p 'org-mode)
-                 (org-at-heading-p)
-                 (progn
-                   (when org-links--debug-flag
-                     (print (format "org-links-store-extended at Org-header")))
-                   (org-links-store-extended-universal (org-links-org-link--normalize-string) ; or (substring-no-properties (org-link-heading-search-string))
-                                                       arg
-                                                       (org-link--normalize-string
-                                                        (org-get-heading t t t t))))))
+           ;; - Org mode - at header. Format: [[* header]], same to `org-link-heading-search-string'
+            ((and (derived-mode-p 'org-mode)
+                  (org-at-heading-p))
+
+             (when org-links--debug-flag
+               (print (format "org-links-store-extended at Org-header")))
+             (org-links-store-extended-universal (concat "*"
+                                                         (let* ((s (org-links-org-link--normalize-string)) ; or (substring-no-properties (org-link-heading-search-string))
+                                                                (pos (string-match " +" s)))
+                                                           (if pos
+                                                               (substring s (match-end 0))
+                                                             s)))
+                                                 arg
+                                                 (org-link--normalize-string
+                                                  (org-get-heading t t t t))))
 
            ;; - Org #+name
            ((and (derived-mode-p 'org-mode)
@@ -555,7 +576,10 @@ Dont escape [] characters, this is done with futher
 Instead of much of removal we only compact spaces and remove leading.
 Instead of removing [1/3], [50%], leading ( and trailing ), spaces at
 the end of STRING, we just compress spaces in line and remove leading
-spaces from STRING.  CONTEXT ignored."
+spaces from STRING.  CONTEXT ignored.
+If string is header, we replace it with one * character without space
+ after.
+Return string"
   (let ((string (or string (buffer-substring-no-properties
                             (line-beginning-position)
                             (line-end-position)))))
@@ -571,14 +595,42 @@ spaces from STRING.  CONTEXT ignored."
 
 (defun org-links-org--unnormalize-string (string)
   "Create regex matching STRING with arbitrary whitespace.
-Reverse of `org-links-org-link--normalize-string.
-Add spaces at begin of line and replace spaces with any number of spaces
-or tabs in the middle.
-To create proper regex, string should be first be processed with
-`regexp-quote'."
-  (concat "[ \t]*" (replace-regexp-in-string " " "[ \t]+" (string-trim string)) "[ \t]*"))
+STRING should not contain regex expressions, be quoted with
+ `regexp-quote'.
+Do 1) replace spaces with regex for spaces of any lenght.
+2) for header make regex for  proper Org headers, for line surround with
+ possible spaces.
+Reverse of `org-links-org-link--normalize-string' and to
+ [[422::(org-at-heading-p)]].  Add spaces at begin of line and replace
+ spaces with any number of spaces or tabs in the middle.
+If STRING starts with * character without space after, it is header
+ search."
+  ;; if it is a heading line "*word" - replace with regex to find headers
+  ;; (print (list "org-links-org--unnormalize-string1" string))
+  ;; spaces may be any lenghth
+  (setq string (string-trim string))
 
+  ;; header or not
+  (if (string-match "^[\\]?\\*+ ?[^ *]" string) ; quoted or not
+      ;; (progn
+        (setq string (concat org-outline-regexp
+                             (replace-regexp-in-string " +" "[ \t]+" string nil nil nil (1- (match-end 0)))))
+                             ;; (substring string (1- (match-end 0)))
+        ;; (setq string (replace-regexp-in-string " +" "[ \t]+" string nil nil nil 4))) ; (1+ (length org-outline-regexp))
+    ;; else
+    ;; (print (list "org-links-org--unnormalize-string2 not header" string))
+    (concat "[ \t]*" (replace-regexp-in-string " +" "[ \t]+" string) "[ \t]*")))
 
+(unless (and
+         (string-equal (org-links-org--unnormalize-string "* asd") "\\*+ asd")
+         (string-equal (org-links-org--unnormalize-string "**asd") "\\*+ asd")
+         (string-equal (org-links-org--unnormalize-string "*asd") "\\*+ asd")
+         (string-equal (org-links-org--unnormalize-string "*as sasd") "\\*+ as[ 	]+sasd")
+         (string-equal (org-links-org--unnormalize-string "\\*asd") "\\*+ asd")
+         (string-equal (org-links-org--unnormalize-string "\\*as d") "\\*+ as[ 	]+d")
+         (string-equal (org-links-org--unnormalize-string "as   asdd") "[ 	]*as[ 	]+asdd[ 	]*")
+         (string-equal (org-links-org--unnormalize-string "asd") "[ 	]*asd[ 	]*"))
+  (error "org-links-org--unnormalize-string test"))
 ;; small tests:
 
 (if (not (string-match (let ((string "    ;;     	    (setq string (org-trim (substring string 1 -1))))"))
@@ -649,7 +701,7 @@ Returns list of line numbers or empty list."
 When ENABLE-TARGET, then Search <<>> and #+NAME keywrord first, if not
  found search for whole line.
 If GET-POSITION is non-nil, then return position instead of line number.
-Return one number or list of numbers or nil."
+Return one number or nil."
   (when org-links--debug-flag
     (print (format "org-links--find-line1 %s" link-org-string)))
   ;; repare search regex
@@ -695,15 +747,16 @@ Return one number or list of numbers or nil."
     ;;                      (point)
     ;;                    ;; else
     ;;                    (line-number-at-pos))))))))))
-
-    (if (eq (length res) 1) ;; found exactly one
-        (car res)
-      ;; else
+    ;; - return first NUM from res, signal erro
+    (if res
+        (progn
+          (when (and (not org-links-silent)
+                     (> (length res) 1))
+            (message "More than one line found, NUM is used. %s" res))
+          (car res))
+      ;; else - no res
       (unless org-links-silent
-        (if  (> (length res) 1)
-            (message "More than one line found, NUM is used. %s" res)
-          ;; else
-          (message "Line not found, NUM is used.")))
+        (message "Line not found, NUM is used."))
       nil)))
 
 ;; (defun org-lnd-target (target-string)
@@ -724,21 +777,6 @@ Return one number or list of numbers or nil."
 
 
 ;; -=  Open link - help functions and variablses
-
-(defvar org-links-num-num-regexp "^\\([0-9]+\\)-\\([0-9]+\\)$"
-  "Links ::NUM-NUM.")
-
-;; (defvar org-links-num-num-re (rx (seq "[["
-;; 	           ;; URI part: match group 1.
-;; 	           (group (+ digit)) "-" (group (+ digit))
-;; 		   ;; Description (optional): match group 2.
-;; 		   (opt "[" (group (+? anything)) "]")
-;; 		   "]")))
-
-(defvar org-links-num-num-line-regexp "^\\([0-9]+\\)-\\([0-9]+\\)::\\(.*\\)$"
-  "Links ::NUM-NUM::LINE.")
-(defvar org-links-num-line-regexp "^\\([0-9]+\\)::\\(.?+\\)$"
-  "Links ::NUM::LINE.")
 
 (defun org-links-num-num-enshure-num2-visible (num2)
   "For NUM-NUM format, we enshure that NUM is visible when jump.
@@ -858,18 +896,19 @@ Return t if link was processed or nil."
           (org-links-num-num-enshure-num2-visible num2))
         t)))
 
-(defun org-links-org-link-search (search)
-  "Apply `org-link-search, suppress errors and give warning for two resutls."
-  (save-excursion
-    (save-restriction
-      ;; (with-restriction (line-end-position) (point-max)
-      ;;   (save-excursion
-      (condition-case nil
-          ;; (with-restriction (line-end-position) (point-max)
-          (let ((org-link-search-must-match-exact-headline t))
-            (org-link-search search nil t))
-        (error nil)
-        (user-error nil)))))
+;; (defun org-links-org-link-search (search)
+;;   "Apply `org-link-search, suppress errors and give warning for two resutls.
+;; Argument SEARCH "
+;;   (save-excursion
+;;     (save-restriction
+;;       ;; (with-restriction (line-end-position) (point-max)
+;;       ;;   (save-excursion
+;;       (condition-case nil
+;;           ;; (with-restriction (line-end-position) (point-max)
+;;           (let ((org-link-search-must-match-exact-headline t))
+;;             (org-link-search search nil t))
+;;         (error nil)
+;;         (user-error nil)))))
 
 
 ;; (add-hook 'org-execute-file-search-functions #'org-links-additional-formats)
@@ -882,6 +921,7 @@ Argument ORIG-FUN is `org-open-file' that breaks at NUM-NUM,
 NUM-NUM::LINE, NUM::LINE formats.
 Support file::LINE and file:LINE formats.
 Use current buffer for search line.
+We apply original function to open file and then find in it.
 Optional argument ARGS is `org-open-file' arguments."
   ;; [[file::#+ or  [[file:#+
   (when org-links--debug-flag
@@ -942,10 +982,11 @@ Optional argument ARGS is `org-open-file' arguments."
               (org-goto-line (string-to-number num1)))
             t))
          (t ;; else - classic Org format
-          ;; Addon to Org logic: signal if two targets exist
+          ;; (old) Addon to Org logic: signal if two targets exist
           (apply orig-fun args)
-          (when (org-links-org-link-search search)
-              (message "Warning: Two targets exist for this link."))))
+          ;; (when (org-links-org-link-search search)
+          ;;     (message "Warning: Two targets exist for this link."))
+          ))
       ;; else - no part after ::
       (apply orig-fun args))))
 
