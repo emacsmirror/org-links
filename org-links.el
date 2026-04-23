@@ -840,8 +840,7 @@ Return t if success or nil if failed"
               (progn
                 (when org-links-debug-flag
                   (print (format "org-links--local-get-target-position-for-link N3 %s"
-                                 n1
-                                 )))
+                                 n1)))
                 (list n1 nil))
             ;; else - fail to find line, return NUM
             (list (string-to-number num1)))))
@@ -1039,8 +1038,10 @@ Optional argument ARGS is `org-open-file' arguments."
       ;; (old) Addon to Org logic: signal if two targets exist
       ;; else - no part after ::
       (when org-links-debug-flag
-        (print (list "org-links-org-open-file-advice N5" "")))
-      (apply orig-fun args)))))
+        (print (list "org-links-org-open-file-advice N5" orig-fun args)))
+      (apply orig-fun (list path t))
+      ;; (apply orig-fun args)
+      ))))
 
 
 ;; (advice-add 'org-open-file :around #'org-links-org-open-file-advice)
