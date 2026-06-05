@@ -699,7 +699,7 @@ When ENABLE-TARGET, then Search <<>> and #+NAME keywrord first, if not
 If GET-POSITION is non-nil, then return position instead of line number.
 Return one number or nil."
   (when org-links-debug-flag
-    (print (format "org-links--find-line1 %s" link-org-string)))
+    (print (format "org-links--find-line N1 %s" link-org-string)))
   ;; repare search regex
   (let ((link-line (concat "^"
                            (org-links-org--unnormalize-string (regexp-quote link-org-string)) ; header or line
@@ -710,24 +710,28 @@ Return one number or nil."
         (link-name (format "^[ \t]*#\\+NAME: +%s[ \t]*$" (regexp-quote link-org-string)))
         res)
 
+    (when org-links-debug-flag
+    (print (format "org-links--find-line N2 %s \"%s\" \"%s\" \"%s\"" enable-target link-target link-name link-line)))
+
     (when enable-target
       ;; search <<target>>
       (setq res (org-links-find-first-two-exact-lines-in-buffer-optimized
                  link-target get-position))
       (when org-links-debug-flag
-        (print (format "org-links--find-line2\n%s\n%s" link-target res)))
-      ;; search #+NAME:
+        (print (format "org-links--find-line N21\n%s\n%s" link-target res))))
+    ;; search #+NAME:
+    (unless res
       (setq res (org-links-find-first-two-exact-lines-in-buffer-optimized
                  link-name get-position))
       (when org-links-debug-flag
-        (print (format "org-links--find-line3\n%s\n%s" link-name res))))
+        (print (format "org-links--find-line N22\n%s\n%s" link-name res))))
 
     (unless res
       ;; search LINE
       (setq res (org-links-find-first-two-exact-lines-in-buffer-optimized
                  link-line get-position))
       (when org-links-debug-flag
-        (print (format "org-links--find-line4\n%s\n%s" link-line res))))
+        (print (format "org-links--find-line N23\n%s\n%s" link-line res))))
 
     ;; (unless (or res only-line)
     ;;   ;; search LINE with Org

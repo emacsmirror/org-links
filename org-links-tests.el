@@ -72,7 +72,7 @@
                 org-execute-file-search-functions)))
      (advice-add 'org-open-file :around #'org-links-org-open-file-advice)
      (unwind-protect
-         (prog1 ,@body
+         (prog1 (progn ,@body )
            (advice-remove 'org-open-file #'org-links-org-open-file-advice)))))
 ;; -=  org-links-store-link-fallback
 ;; Helper usage already defined above
@@ -618,6 +618,23 @@ ss
      (goto-char 1)
      (org-open-at-point)
      (should (= (point) 9))))))
+
+(ert-deftest org-links-tests-jump-target-srcname3 ()
+ (let ((kill-buffer-query-functions)
+       res)
+  (with-temp-buffer
+    (with-org-link-config
+     (org-mode)
+     (insert "[[2::asd]]
+#+name: asd
+#+begin_src elisp
+#+end_src
+ss
+<<asd>>")
+     (goto-char 1)
+     (org-open-at-point)
+     (setq res (point))
+     (should (= (point) 55))))))
 
 ;; -= org-links-org-link--normalize-string
 (ert-deftest org-links-tests-normalize-string1 ()
