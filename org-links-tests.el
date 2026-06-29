@@ -288,14 +288,11 @@
   (with-temp-buffer
     (insert "alpha\nlink1\nlink2\nlink1\nlink3\n")
     ;; Should return line number only if exactly one match
-    (should (equal (org-links--find-line "link2") 3)) ; line number 3
+    (should (equal (org-links--find-line "link2") '(3))) ; line number 3
     ;; ;; Multiple matches => fist
     (let ((org-links-on-several-halt-flag nil))
-      (should (equal (org-links--find-line "link1") 2)))
-    ;; Multiple matches => error
-    (let ((org-links-on-several-halt-flag t))
-      (should-error (org-links--find-line "link1")
-                    :type 'error))
+      (should (equal (org-links--find-line "link1") '(2 4))))
+
     ;; No match => nil
     (should (equal (org-links--find-line "foo") nil))))
 
@@ -367,34 +364,99 @@
        )
 ;; -= double find
 
-(ert-deftest org-links-tests-double-find ()
+(ert-deftest org-links-tests-double-find-inorg ()
   (let ((kill-buffer-query-functions))
     (with-temp-buffer
       (with-org-link-config
+       (setq org-links-debug-flag t)
        (org-mode)
        ;; (setq buffer-file-name "/mock/test.txt")
        (let ((org-links-on-several-halt-flag t)
-             link1 link2)
+             link1 link2p)
          (insert "* header1")
          (setq link1 (org-links-store-extended nil))
          (setq link2 (org-links-store-extended 1))
          (insert "\n\n#nothin\n# never\nfoo\nbar\nbaz\nqux\n")
          (insert "* header1\nas\n")
-         (insert "\n" link1)
-         (set-buffer-modified-p nil)
 
+         ;; 1)
+         (insert "\n" link1) ; to header1,"org: [[1::*header1]][[1::*header1]]", not org: "[[1::* header1]]"
+         (print (list "aaaa1 " (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+         (set-buffer-modified-p nil)
          (backward-char)
-         ;; (org-open-at-point)))))
+         (org-open-at-point) ; should not erro
+         (should (= 1 (point)))
+         ;; 2)
+         (goto-char (point-max))
+         (insert "\n" link2)
+         (print (list "aaaa2 " (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+         (backward-char)
+         (org-open-at-point) ; should not erro
+         ;; (line-number-at-pos)
+         (should (= 1 (point)))
+         )))))
+
+(ert-deftest org-links-tests-double-find-notinorg ()
+  (let ((kill-buffer-query-functions))
+    (with-temp-buffer
+      (with-org-link-config
+       (setq org-links-debug-flag t)
+       (org-mode)
+       ;; (setq buffer-file-name "/mock/test.txt")
+       (let ((org-links-on-several-halt-flag t)
+             link1 link2p)
+         (insert "* header1")
+         (setq link1 (org-links-store-extended nil))
+         (setq link2 (org-links-store-extended 1))
+         (insert "\n\n#nothin\n# never\nfoo\nbar\nbaz\nqux\n")
+         (insert "* header1\nas\n")
+
+         ;; mess fle
+         (goto-char (point-min))
+         (insert "vvv\n")
+         (goto-char (point-max))
+
+
+         ;; 1)
+         (insert "\n" link1) ; to header1,"org: [[1::*header1]][[1::*header1]]", not org: "[[1::* header1]]"
+         (print (list "aaaa1 " (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+         (set-buffer-modified-p nil)
+         (backward-char)
          (should-error (org-open-at-point)
                        :type 'user-error)
+         (should (= 76 (point)))
+         ;; 2)
+         (goto-char (point-max))
          (insert "\n" link2)
+         (print (list "aaaa2 " (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+         (backward-char)
          (should-error (org-open-at-point)
-                       :type 'user-error)))))
+                       :type 'user-error)
+         ;; (line-number-at-pos)
+         (should (= 92 (point)))
+         )))))
+
+
+
+
+         ;; (org-open-at-point)
+         ;; (org-links-org-open-at-point-global)
+         ;; (point)
+         ;; (should-error (org-open-at-point)
+         ;;               :type 'user-error)
+         ;; (insert "\n" link2)
+         ;; (set-buffer-modified-p nil)
+
+         ;; ;; (backward-char)
+         ;; (should-error (org-open-at-point)
+         ;;               :type 'user-error)
+
+
           ;; (print (buffer-substring-no-properties
           ;;                      (line-beginning-position)
           ;;                      (line-end-position)))))))
 ;; org-links-on-several-flag
-         )
+         ;; ))
 
 ;; -=  store link
 ;; Mocking necessary dependencies
@@ -535,21 +597,60 @@
                 (car kill-ring)))))))
 
 ;; -=  store link - region - skip comments in programming mode
-(ert-deftest org-links-tests-store-extended-region-programming-mode ()
- (let ((kill-buffer-query-functions))
+(ert-deftest org-links-tests-store-extended-region-programming-mode-not-skip ()
+ (let ((kill-buffer-query-functions)
+       (org-links-region-create-skip-comments-flag nil))
   (with-temp-buffer
       (with-org-link-config
          (python-mode)
          (setq buffer-file-name "/mock/test.txt")
-         (insert "\n\n#nothin\n# never\nfoo\nbar\nbaz\nqux")
+         (insert "\n" ; 1
+                 "\n"
+                 "#nothin\n" ; 3
+                 "# never\n" ; 4
+                 "foo\n" ; 5
+                 "bar\n"
+                 "baz\n"
+                 "qux\n" ; 8
+                 "\n"
+                 "#asd") ; 10
          (set-buffer-modified-p nil)
+         ;; range
          (set-mark (point-min))
          (goto-char (point-max))
          (setq kill-ring nil)
          (org-links-store-extended nil)
          (should (string-match-p
-                  "\[\[\.\..*/mock/test\.txt::5-8::foo]]"
+                  "[[\.\..*/mock/test.txt::3-10::#nothin][nothin]]"
                   (car kill-ring)))))))
+
+(ert-deftest org-links-tests-store-extended-region-programming-mode-skip ()
+ (let ((kill-buffer-query-functions)
+       (org-links-region-create-skip-comments-flag t))
+  (with-temp-buffer
+      (with-org-link-config
+         (python-mode)
+         (setq buffer-file-name "/mock/test.txt")
+         (insert "\n" ; 1
+                 "\n"
+                 "#nothin\n" ; 3
+                 "# never\n" ; 4
+                 "foo\n" ; 5
+                 "bar\n"
+                 "baz\n"
+                 "qux\n" ; 8
+                 "\n"
+                 "#asd") ; 10
+         (set-buffer-modified-p nil)
+         ;; range
+         (set-mark (point-min))
+         (goto-char (point-max))
+         (setq kill-ring nil)
+         (org-links-store-extended nil)
+         (should (string-match-p
+                  "[[\.\..*/mock/test\.txt::5-8::foo]]"
+                  (car kill-ring)))))))
+
 ;; -= name of block and target: create link
 (ert-deftest org-links-tests-block-create-by-name-and-target ()
  (let ((kill-buffer-query-functions)
