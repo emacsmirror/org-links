@@ -928,7 +928,7 @@ Return t if success or nil if failed"
                                  n1)))
                 (list n1 nil))
             ;; else - fail to find line, return NUM
-            (list (string-to-number num1)))))
+            (list num1))))
        ;; ;; LINE - may be a target (without <<>>) or fuzzy link
        ;; ((and (not (derived-mode-p 'org-mode))
        ;;       (when-let ((num1 (org-links--find-line link t)))

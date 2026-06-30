@@ -38,7 +38,7 @@ jobs:
           git clone https://github.com/riscy/melpazoid.git ~/melpazoid
           pip install ~/melpazoid
       - name: Install Emacs
-        uses: purcell/setup-emacs@v8.0
+        uses: purcell/setup-emacs@master
         with:
           version: ${{ matrix.emacs_version }}
       - name: Tests
