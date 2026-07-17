@@ -368,7 +368,7 @@
   (let ((kill-buffer-query-functions))
     (with-temp-buffer
       (with-org-link-config
-       (setq org-links-debug-flag t)
+       ;; (setq org-links-debug-flag t)
        (org-mode)
        ;; (setq buffer-file-name "/mock/test.txt")
        (let ((org-links-on-several-halt-flag t)
@@ -381,7 +381,7 @@
 
          ;; 1)
          (insert "\n" link1) ; to header1,"org: [[1::*header1]][[1::*header1]]", not org: "[[1::* header1]]"
-         (print (list "aaaa1 " (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+         ;; (print (list "aaaa1 " (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
          (set-buffer-modified-p nil)
          (backward-char)
          (org-open-at-point) ; should not erro
@@ -389,7 +389,7 @@
          ;; 2)
          (goto-char (point-max))
          (insert "\n" link2)
-         (print (list "aaaa2 " (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+         ;; (print (list "aaaa2 " (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
          (backward-char)
          (org-open-at-point) ; should not erro
          ;; (line-number-at-pos)
@@ -400,7 +400,7 @@
   (let ((kill-buffer-query-functions))
     (with-temp-buffer
       (with-org-link-config
-       (setq org-links-debug-flag t)
+       ;; (setq org-links-debug-flag t)
        (org-mode)
        ;; (setq buffer-file-name "/mock/test.txt")
        (let ((org-links-on-several-halt-flag t)
@@ -419,7 +419,7 @@
 
          ;; 1)
          (insert "\n" link1) ; to header1,"org: [[1::*header1]][[1::*header1]]", not org: "[[1::* header1]]"
-         (print (list "aaaa1 " (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+         ;; (print (list "aaaa1 " (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
          (set-buffer-modified-p nil)
          (backward-char)
          (should-error (org-open-at-point)
@@ -428,7 +428,7 @@
          ;; 2)
          (goto-char (point-max))
          (insert "\n" link2)
-         (print (list "aaaa2 " (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
+         ;; (print (list "aaaa2 " (buffer-substring-no-properties (line-beginning-position) (line-end-position))))
          (backward-char)
          (should-error (org-open-at-point)
                        :type 'user-error)
@@ -437,39 +437,11 @@
          )))))
 
 
-
-
-         ;; (org-open-at-point)
-         ;; (org-links-org-open-at-point-global)
-         ;; (point)
-         ;; (should-error (org-open-at-point)
-         ;;               :type 'user-error)
-         ;; (insert "\n" link2)
-         ;; (set-buffer-modified-p nil)
-
-         ;; ;; (backward-char)
-         ;; (should-error (org-open-at-point)
-         ;;               :type 'user-error)
-
-
-          ;; (print (buffer-substring-no-properties
-          ;;                      (line-beginning-position)
-          ;;                      (line-end-position)))))))
-;; org-links-on-several-flag
-         ;; ))
-
 ;; -=  store link
 ;; Mocking necessary dependencies
 (defmacro org-links-tests-with-mocks (&rest body)
   `(cl-letf (((symbol-function 'image-dired-original-file-name)
-              (lambda () "/mock/pic.jpg"))
-             ;; ((symbol-function 'org-links-create-link)
-             ;;  (lambda (x) (concat "[[" x "]]")))
-             ;; ((symbol-function 'org-store-link)
-             ;;  (lambda (_) "[[file:/mock/test.txt]]"))
-             ;; ((symbol-function 'org-links-org-link--normalize-string)
-             ;;  (lambda (x) x))
-             )
+              (lambda () "/mock/pic.jpg")))
      ,@body))
 
 (ert-deftest org-links-tests-store-extended-image-thumbnail-test ()

@@ -211,8 +211,7 @@ DESCRIPTION not used."
 (defun org-links-get-type (string) ; not used
   "Format path of link according to `org-link-file-path-type' variable.
 We use `org-insert-link' function that have required logic.
-Argument STRING is a org link of file: type.
-DESCRIPTION not used."
+Argument STRING is a org link of file: type."
   (with-temp-buffer
     (org-insert-link nil string)
     (goto-char 1)
@@ -262,13 +261,12 @@ DESCRIPTION not used."
   "Create link for transient-mode region selection.
 Works for any mode.
 For programming modes we skip comments at begining.
-If universal argument LONG-FLAG provided, then links create with full path for
-sharing between documents.
+If universal argument LONG-FLAG provided, then links create with full
+ path for sharing between documents.
 Without LONG-FLAG links are shorter for working in current document.
-Return link or nil if line begin and end are equal for region"
+Return link or nil if line begin and end are equal for region."
   (interactive "P")
-  (catch 'nothing-to-put ; (throw 'nothing-to-put nil)
-
+  (catch 'nothing-to-put
 
   (let ((r-end (region-end))
         (r-beg (region-beginning)))
@@ -323,7 +321,6 @@ Return link or nil if line begin and end are equal for region"
                 (while (and (comment-only-p (line-beginning-position) (line-end-position))
                             (> (point) first-line-pos)
                             (not (bobp)))
-                  (print "s")
                   (forward-line -1)
                   (re-search-backward "[^ \t\n]" first-line-pos t)
                   (end-of-line))
@@ -751,7 +748,8 @@ Returns list of line numbers or empty list."
 Argument RES is result of `org-links--find-line'
 Optional NUM is a member of RES, that we check.
 Return first element of RES or nil."
-  (print (list "org-links--get-first-and-check" res num))
+  (when org-links-debug-flag
+    (print (list "org-links--get-first-and-check" res num)))
   (prog1
       (car res) ; return
     (when (and (> (length res) 1)
